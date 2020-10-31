@@ -104,6 +104,7 @@ async function getUDPSocket(
             }
         });
         if(await resolvePromise) {
+            console.log(`Opened UDP tunnel socket on port ${port}`);
             return {
                 socket,
                 port
@@ -113,6 +114,7 @@ async function getUDPSocket(
 }
 
 async function runClient() {
+    console.log(`Running as client`);
     // remote port SOURCE + "_" + remoteId => local port SOURCE
     //  We need this, because the remotes can ensure their source ports are unique,
     //  but multiple remotes may have the same ports, so we need to remap them.
