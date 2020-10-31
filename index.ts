@@ -124,13 +124,14 @@ async function runClient() {
     //  We need this, because the remotes can ensure their source ports are unique,
     //  but multiple remotes may have the same ports, so we need to remap them.
     // TODO: Stop leaking entries in this map, and free them when clients disconnect
-    let remotePortMappings: Map<string, number> = new Map();
+    //let remotePortMappings: Map<string, number> = new Map();
 
     let messageSources: Map<string, { socket: dgram.Socket; port: number }> = new Map();
-    async function getSocket(remoteId: string, portOverride?: number) {
+    async function getSocket(remoteId: string, localPortOverride: number|undefined, responsePortOverride: number|undefined) {
         let socketObj = messageSources.get(remoteId);
         if(!socketObj) {
-            socketObj = await getUDPSocket(portOverride, (message, info) => {
+            socketObj = await getUDPSocket(localPortOverride, (message, info) => {
+                let responsePort = responsePortOverride || socketObj?.port || 0;
                 let packet: PacketMessage = {
                     type: "message",
                     payloadBase64: message.toString("base64"),
@@ -141,7 +142,7 @@ async function runClient() {
                     sourcePort: info.port,
 
                     destId: remoteId,
-                    destPort:  socketObj?.port || 0,
+                    destPort: responsePort,
                 };
                 vpnConnection.send(JSON.stringify(packet));
             });
@@ -163,7 +164,7 @@ async function runClient() {
         };
         vpnConnection.send(JSON.stringify(packet));
         if(!clientServer) {
-            await getSocket("server", serverUDPPort);
+            await getSocket("server", serverUDPPort, undefined);
         }
     });
 
@@ -171,8 +172,7 @@ async function runClient() {
         let packet = JSON.parse(message.toString("utf8")) as Packets;
         console.log("Received", packet);
         if(packet.type === "message") {
-            let socket = await getSocket(packet.sourceId);
-            remotePortMappings.set(packet.sourcePort + "_" + packet.destId, socket.port);
+            let socket = await getSocket(packet.sourceId, undefined, packet.sourcePort);
             let buffer = Buffer.from(packet.payloadBase64, "base64");
             // Remote messages are send to the local machine via tunnel through the VPN,
             //  popping out from a UDP port created locally.
