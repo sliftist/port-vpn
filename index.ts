@@ -60,7 +60,7 @@ async function main() {
                         console.error(`Cannot find client for packet`, packet);
                         return;
                     }
-                    destClient.send(packet);
+                    destClient.send(JSON.stringify(packet));
                 }
             });
             socket.on("error", (err) => {
@@ -169,6 +169,7 @@ async function runClient() {
 
     vpnConnection.on("message", async (message) => {
         let packet = JSON.parse(message.toString("utf8")) as Packets;
+        console.log("Received", packet);
         if(packet.type === "message") {
             let socket = await getSocket(packet.sourceId);
             remotePortMappings.set(packet.sourcePort + "_" + packet.destId, socket.port);
