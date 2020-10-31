@@ -10,4 +10,4 @@ let socket = dgram.createSocket("udp4", (message, info) => {
         socket.send("Hi, client, I'm the server", info.port);
     }
 });
-socket.bind(serverUDPPort);
+socket.bind({ port: serverUDPPort, exclusive: false });
