@@ -25,6 +25,8 @@ async function isServer() {
         serverSocket.close();
     });
 
+    setTimeout(() => isServerCallback(false), 500);
+
     return isServerPromise;
 }
 
@@ -34,7 +36,7 @@ async function main() {
         let clientResolve: (clientPromise: Promise<void>) => void;
         let clientPromise = new Promise(x => clientResolve = x);
 
-        console.log("Running as server");
+        console.log("Running as VPN exchange");
 
         let clients: Map<string, WebSocket> = new Map();
 
@@ -66,7 +68,7 @@ async function main() {
             });
         });
         server.on("error", err => {
-            console.log("Switching to run as client, as server port is already being used");
+            console.log("Switching to run as user, as exchange port is already being used");
             clientResolve(runClient());
         });
 
@@ -114,7 +116,9 @@ async function getUDPSocket(
 }
 
 async function runClient() {
-    console.log(`Running as client`);
+    let clientServer = process.argv.some(x => x.endsWith("server"));
+
+    console.log(`Running as user, ${clientServer ? "server" : "client"}`);
     // remote port SOURCE + "_" + remoteId => local port SOURCE
     //  We need this, because the remotes can ensure their source ports are unique,
     //  but multiple remotes may have the same ports, so we need to remap them.
@@ -146,13 +150,12 @@ async function runClient() {
     }
 
 
-    let clientServer = process.argv.some(x => x.endsWith("server"));
-
     const ourId = clientServer ? "server" : (Date.now() + "_" + Math.random());
 
     let vpnConnection = new WebSocket("ws://" + serverAddress + ":" + vpnTCPPort);
 
     vpnConnection.on("open", async () => {
+        console.log("Connect to VPN exchange");
         let packet: PacketConnected = {
             type: "connected",
             id: ourId,
