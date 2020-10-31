@@ -2,7 +2,7 @@ import * as net from "net";
 import WebSocket from "ws";
 
 import * as dgram from "dgram";
-import { selfIdentifyTCPPort, serverAddress, serverTCPPort, clientUDPPort } from "./common";
+import { selfIdentifyTCPPort, serverAddress, vpnTCPPort, serverUDPPort } from "./common";
 
 
 
@@ -38,10 +38,28 @@ async function main() {
 
         let clients: Map<string, WebSocket> = new Map();
 
-        let server = new WebSocket.Server({ port: serverTCPPort });
+        let server = new WebSocket.Server({ port: vpnTCPPort });
         server.on("connection", socket => {
             socket.on("message", data => {
+                console.log("Received", data);
+
                 let packet = JSON.parse(data.toString("utf8")) as Packets;
+                clients.set(packet.id, socket);
+                if(packet.type === "disconnected") {
+                    clients.delete(packet.id);
+
+                    // Forward the disconnected message to everyone
+                    for(let otherClient of clients.values()) {
+                        otherClient.send(packet);
+                    }
+                } else if(packet.type === "message") {
+                    let destClient = clients.get(packet.destId);
+                    if(!destClient) {
+                        console.error(`Cannot find client for packet`, packet);
+                        return;
+                    }
+                    destClient.send(packet);
+                }
             });
             socket.on("error", (err) => {
                 console.log(err);
@@ -110,6 +128,8 @@ async function runClient() {
                     type: "message",
                     payloadBase64: message.toString("base64"),
 
+                    id: ourId,
+
                     sourceId: ourId,
                     sourcePort: info.port,
 
@@ -128,7 +148,7 @@ async function runClient() {
 
     const ourId = clientServer ? "server" : (Date.now() + "_" + Math.random());
 
-    let vpnConnection = new WebSocket("ws://" + serverAddress + ":" + serverTCPPort);
+    let vpnConnection = new WebSocket("ws://" + serverAddress + ":" + vpnTCPPort);
 
     vpnConnection.on("open", async () => {
         let packet: PacketConnected = {
@@ -137,7 +157,7 @@ async function runClient() {
         };
         vpnConnection.send(JSON.stringify(packet));
         if(!clientServer) {
-            await getSocket("server", clientUDPPort);
+            await getSocket("server", serverUDPPort);
         }
     });
 
@@ -147,12 +167,16 @@ async function runClient() {
             let socket = await getSocket(packet.sourceId);
             remotePortMappings.set(packet.sourcePort + "_" + packet.destId, socket.port);
             let buffer = Buffer.from(packet.payloadBase64, "base64");
-            socket.socket.send(buffer, packet.destPort);
+            // Remote messages are send to the local machine via tunnel through the VPN,
+            //  popping out from a UDP port created locally.
+            socket.socket.send(buffer, packet.destPort, "127.0.0.1");
         } else if(packet.type === "disconnected") {
             let socket = messageSources.get(packet.id);
             if(socket) {
                 socket.socket.disconnect();
             }
+        } else if(packet.type === "connected") {
+
         } else {
             let unhandledType: never = packet;
         }
