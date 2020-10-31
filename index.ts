@@ -117,6 +117,8 @@ async function getUDPSocket(
 }
 
 async function runClient() {
+    console.log("Started user, arguments", process.argv);
+
     let clientServer = process.argv.some(x => x.endsWith("server"));
 
     console.log(`Running as user, ${clientServer ? "server" : "client"}`);
