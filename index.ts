@@ -10,7 +10,7 @@ main().catch(e => console.error(e));
 
 async function isServer() {
     let serverSocket = net.createServer(socket => { });
-    serverSocket.listen(selfIdentifyTCPPort, "127.0.0.1");
+    serverSocket.listen(selfIdentifyTCPPort, "0.0.0.0");
 
     let isServerCallback: (isServer: boolean) => void;
     let isServerPromise = new Promise<boolean>(x => isServerCallback = x);
