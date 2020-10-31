@@ -105,6 +105,7 @@ async function getUDPSocket(
                 resolve(false);
             }
         });
+        socket.bind(port);
         if(await resolvePromise) {
             console.log(`Opened UDP tunnel socket on port ${port}`);
             return {
