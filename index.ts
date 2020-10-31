@@ -136,7 +136,6 @@ async function runClient() {
                 let responsePort = responsePortOverride || socketObj?.port || 0;
                 let packet: PacketMessage = {
                     type: "message",
-                    payloadBase64: message.toString("base64"),
 
                     id: ourId,
 
@@ -145,6 +144,8 @@ async function runClient() {
 
                     destId: remoteId,
                     destPort: responsePort,
+
+                    payloadBase64: message.toString("base64"),
                 };
                 vpnConnection.send(JSON.stringify(packet));
             });
